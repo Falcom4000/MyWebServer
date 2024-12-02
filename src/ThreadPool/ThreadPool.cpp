@@ -41,8 +41,8 @@ template<class F, class... Args>
 auto ThreadPool::commit(F&& f, Args&&... args) 
     -> future<decltype((f(args...)))>{
         using RetType = decltype(f(args...));
-        auto task = make_shared<packaged_task<RetType()>>(
-            bind(forward<F>(f), forward<Args>(args)...)
+        auto task = make_shared<packaged_task<RetType>>(
+            bind(forward<F>(f), forward<Args>(args...))
         ); // 通过bind消除参数，得到task，void ->RetType 的callable object
         {
             auto lk = unique_lock(this->mtx_);
