@@ -1,6 +1,7 @@
 # MyWebServer
 C++14 Webserver
-
+format用到了C++20的特性 只能先安装第三方库作为替代 
+format库 sudo apt-install fmt
 
 ## 线程池的设计
 1. 将所有任务存储到任务队列中，任务队列由阻塞队列实例化得到
@@ -44,3 +45,12 @@ writePos_ - buffer.size() 之间是预留空间
 将事件暂存进vector中，对外提供查询接口
 避免内核事件表的fd和socket的fd混用
 避免直接暴露内核态接口
+
+## 异步日志库的设计
+1. 单例模式一个Log，里面控制着阻塞队列和Buffer
+2. 用宏标记代码里的写入点
+3. 创建日志文件：fopen一个日期.txt
+4. 将时间 写入内容格式化成char*传给buffer里
+5. buffer全部转为string，压入deque，用条件变量通知写线程
+6. 写线程持续不断地尝试读string并写入log
+7. 析构时先清空buffer，再清空deque，最后清空fp，并等待写线程返回。
