@@ -1,5 +1,3 @@
-#ifndef WEBSERVER_H
-#define WEBSERVER_H
 /*
 设计思路
 1.  <fd, HttpConn> 每个连接对应一个fd，每个fd对应一个HttpConn
@@ -12,11 +10,10 @@
 4.2.2 最后，把fd在内核事件表里重新注册成EPOLLOUT，等待EPOLLOUT事件
 4.3 EPOLLOUT事件，说明数据可写，往fd里写数据——聚集写，写http头和返回文件
 4.3.1 写完后，把fd在内核事件表里重新注册成EPOLLIN，等待EPOLLIN事件
-
-
-
-
 */
+#ifndef WEBSERVER_H
+#define WEBSERVER_H
+
 #include <unordered_map>
 #include <fcntl.h>       // fcntl()
 #include <unistd.h>      // close()
@@ -25,9 +22,16 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <filesystem>
 
 #include "epoller.h"
-#include "../ThreadPool/ThreadPool.cpp"
+#include "../log/log.h"
+#include "../timer/heaptimer.h"
+#include "../pool/sqlconnpool.h"
+#include "../pool/threadpool.h"
+#include "../pool/sqlconnRAII.h"
+#include "../http/httpconn.h"
+#include "../iplist/iplist.h"
 
 class WebServer {
 public:
@@ -51,7 +55,7 @@ private:
 
     void SendError_(int fd, const char*info);
     void ExtentTime_(HttpConn* client);
-    void CloseConn_(HttpConn* client);   
+    void CloseConn_(HttpConn* client);
 
     void OnRead_(HttpConn* client);
     void OnWrite_(HttpConn* client);
@@ -66,7 +70,7 @@ private:
     int timeoutMS_;  /* 毫秒MS */
     bool isClose_;
     int listenFd_;
-    char* srcDir_;
+    string srcDir_;
     
     uint32_t listenEvent_;
     uint32_t connEvent_;
@@ -75,6 +79,7 @@ private:
     std::unique_ptr<ThreadPool> threadpool_;
     std::unique_ptr<Epoller> epoller_;
     std::unordered_map<int, HttpConn> users_;
+    std::unique_ptr<iplist> iplist_;
 };
 
 

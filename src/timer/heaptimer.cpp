@@ -9,13 +9,11 @@
 #include <iostream>
 #include <thread>
 #include "heaptimer.h"
-
+#include "../log/log.h"
 typedef std::shared_ptr<std::function<void()>> TimeoutCallBack;
 typedef std::chrono::high_resolution_clock Clock;
 typedef std::chrono::milliseconds MS;
 typedef Clock::time_point TimeStamp;
-
-auto startClock = Clock::now();
 
 void HeapTimer::add(int id, int timeOut, TimeoutCallBack cb){
     // 确保只有最新添加进来的定时器才会被执行
@@ -55,10 +53,9 @@ void HeapTimer::tick(){
     while(!queue.empty()){
         auto node = queue.top();
         auto it = map.find(node.id_);
-        printf("id = %i, count = %i, expire = %li \n", node.id_, node.count_,std::chrono::duration_cast<std::chrono::milliseconds>(node.expires_ - Clock::now()).count());
+        std::chrono::duration_cast<std::chrono::milliseconds>(node.expires_ - Clock::now()).count();
         if(it->second.avaliableCount_ != node.count_){
             // 延迟删除
-            printf("delete id = %i\n", node.id_);
             it->second.count_--;
             queue.pop();
             if(it->second.count_ == 0){
@@ -84,7 +81,7 @@ int HeapTimer::GetNextTimeout() {
     tick();
     size_t res = -1;
     if(!queue.empty()) {
-        res = std::chrono::duration_cast<std::chrono::milliseconds>(queue.top().expires_ - startClock).count();
+        res = std::chrono::duration_cast<std::chrono::milliseconds>(queue.top().expires_ - Clock::now()).count();
         if(res < 0) { res = 0; }
     }
     return res;
@@ -103,30 +100,4 @@ void HeapTimer::clear()
 HeapTimer::~HeapTimer()
 {
     clear();
-}
-
-int main() {
-    HeapTimer timer;
-    // 添加计时器
-    timer.add(1, 3000, std::make_shared<std::function<void()>>([](){ std::cout << "Timer 1 expired\n"; }));
-    timer.add(2, 2000, std::make_shared<std::function<void()>>([](){ std::cout << "Timer 2 expired\n"; }));
-    
-    // 触发计时
-    timer.tick();
-    
-    // 重置计时器
-    timer.reset(1, 1500);
-    
-    // 完成并触发回调
-    timer.done(2);
-    
-    // 再次触发计时
-    while (true)
-    {
-        //模拟休眠
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        timer.tick();
-    }
-
-     return 0;
 }
