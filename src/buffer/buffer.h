@@ -1,6 +1,10 @@
 #ifndef BUFFER_H
 #define BUFFER_H
 
+
+//TODO: 使用std::string替换vector<char>，并且使用std::string的append方法
+
+
 /*
 设计思路：
 连续地址vector<char>存放数据
