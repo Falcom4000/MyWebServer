@@ -77,26 +77,42 @@ void HttpRequest::ParsePath_() {
 }
 
 bool HttpRequest::ParseRequestLine_(const string& line) {
-    regex patten("^([^ ]*) ([^ ]*) HTTP/([^ ]*)$");
-    smatch subMatch;
-    if(regex_match(line, subMatch, patten)) {   
-        method_ = subMatch[1];
-        path_ = subMatch[2];
-        version_ = subMatch[3];
-        state_ = HEADERS;
-        return true;
+    size_t first_space = line.find(' ');
+    if (first_space == string::npos) {
+        LOG_ERROR("RequestLine Error: no first space");
+        return false;
     }
-    LOG_ERROR("RequestLine Error");
-    return false;
+    
+    size_t second_space = line.find(' ', first_space + 1);
+    if (second_space == string::npos) {
+        LOG_ERROR("RequestLine Error: no second space");
+        return false;
+    }
+    
+    size_t http_pos = line.find("HTTP/", second_space + 1);
+    if (http_pos != second_space + 1) {
+        LOG_ERROR("RequestLine Error: HTTP version format error");
+        return false;
+    }
+
+    method_ = line.substr(0, first_space);
+    path_ = line.substr(first_space + 1, second_space - first_space - 1);
+    version_ = line.substr(second_space + 6); // Skip "HTTP/"
+    
+    state_ = HEADERS;
+    return true;
 }
 
 void HttpRequest::ParseHeader_(const string& line) {
-    regex patten("^([^:]*): ?(.*)$");
-    smatch subMatch;
-    if(regex_match(line, subMatch, patten)) {
-        header_[subMatch[1]] = subMatch[2];
-    }
-    else {
+    size_t colon_pos = line.find(':');
+    if (colon_pos != string::npos) {
+        string key = line.substr(0, colon_pos);
+        size_t value_start = line.find_first_not_of(' ', colon_pos + 1);
+        if (value_start != string::npos) {
+            string value = line.substr(value_start);
+            header_[key] = value;
+        }
+    } else {
         state_ = BODY;
     }
 }
