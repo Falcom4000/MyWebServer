@@ -1,3 +1,4 @@
+#include <memory>
 using namespace std;
 #include "webserver.h"
 
@@ -7,7 +8,7 @@ WebServer::WebServer(
             const char* dbName, int connPoolNum, int threadNum,
             bool openLog, int logLevel, int logQueSize):
             port_(port), openLinger_(OptLinger), timeoutMS_(timeoutMS), isClose_(false),
-            timer_(new HeapTimer()), threadpool_(new ThreadPool()), epoller_(new Epoller()), iplist_(new iplist("./iplist/ip.log"))
+            timer_(new HeapTimer()), threadpool_(new ThreadPool()), epoller_(new Epoller()), iplist_(make_unique<iplist>("./iplist/ip.log"))
     {
     srcDir_ = filesystem::current_path().string() + "/resources";
     LOG_INFO("srcDir: {}", srcDir_.c_str());
@@ -242,6 +243,14 @@ bool WebServer::InitSocket_() {
         return false;
     }
 
+    int keep_alive = 1;
+    ret = setsockopt(listenFd_, SOL_SOCKET, SO_KEEPALIVE, &keep_alive, sizeof(int));
+    if(ret == -1) {
+        LOG_ERROR("set socket keep_alive error !");
+        close(listenFd_);
+        return false;
+    }
+
     ret = bind(listenFd_, (struct sockaddr *)&addr, sizeof(addr));
     if(ret < 0) {
         LOG_ERROR("Bind Port:{} error!", port_);
@@ -268,7 +277,7 @@ bool WebServer::InitSocket_() {
 
 int WebServer::SetFdNonblock(int fd) {
     assert(fd > 0);
-    return fcntl(fd, F_SETFL, fcntl(fd, F_GETFD, 0) | O_NONBLOCK);
+    return fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 }
 
 

@@ -66,7 +66,7 @@ private:
 
     void ParsePath_();
     void ParsePost_();
-    void ParseFromUrlencoded_();
+    void ParseFormUrlencoded_();
 
     static bool UserVerify(const std::string& name, const std::string& pwd, bool isLogin);
 

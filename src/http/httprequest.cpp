@@ -116,7 +116,7 @@ int HttpRequest::ConverHex(char ch) {
 
 void HttpRequest::ParsePost_() {
     if(method_ == "POST" && header_["Content-Type"] == "application/x-www-form-urlencoded") {
-        ParseFromUrlencoded_();
+        ParseFormUrlencoded_();
         if(DEFAULT_HTML_TAG.count(path_)) {
             int tag = DEFAULT_HTML_TAG.find(path_)->second;
             LOG_DEBUG("Tag:{}", tag);
@@ -133,7 +133,7 @@ void HttpRequest::ParsePost_() {
     }   
 }
 
-void HttpRequest::ParseFromUrlencoded_() {
+void HttpRequest::ParseFormUrlencoded_() {
     if(body_.size() == 0) { return; }
 
     string key, value;
