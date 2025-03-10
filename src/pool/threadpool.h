@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <functional>
 #include <future>
+#include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
@@ -41,9 +42,11 @@ public:
         auto task = make_shared<packaged_task<RetType()>>(
             bind(forward<F>(f), forward<Args>(args)...)); // 通过bind消除参数，得到task，void ->RetType 的callable object
         {
-            auto lk = unique_lock(this->mtx_);
+            {
+            lock_guard<mutex> lk(this->mtx_);
             this->taskQueue_.emplace(move([task]() { (*task)(); })); // lambda表达式为void - >void 的 callable object，可以用来构造Task
             this->cv_.notify_one();
+            }
         }
         future<RetType> res = task->get_future();
         return res;
