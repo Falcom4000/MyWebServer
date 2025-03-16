@@ -42,6 +42,16 @@ public:
 
     void flush();
 
+    // Add methods for move semantics
+    void push_back(T &&item);  // Move version of push_back
+    void push_front(T &&item); // Move version of push_front
+    template<typename... Args>
+    void emplace_back(Args&&... args); // Emplace back to construct in-place
+    
+    // Replace std::optional methods with alternative move-based methods
+    bool pop_move(T &item); // Pop that moves the value into item
+    bool pop_move(T &item, int timeout); // Pop with timeout that moves the value
+
 private:
     std::deque<T> deq_;
 
@@ -131,6 +141,31 @@ void BlockDeque<T>::push_front(const T &item) {
 }
 
 template<class T>
+void BlockDeque<T>::push_back(T &&item) {
+    std::unique_lock<std::mutex> locker(mtx_);
+    condProducer_.wait(locker, [&]{ return deq_.size() < capacity_; });
+    deq_.push_back(std::move(item));
+    condConsumer_.notify_one();
+}
+
+template<class T>
+void BlockDeque<T>::push_front(T &&item) {
+    std::unique_lock<std::mutex> locker(mtx_);
+    condProducer_.wait(locker, [&]{ return deq_.size() < capacity_; });
+    deq_.push_front(std::move(item));
+    condConsumer_.notify_one();
+}
+
+template<class T>
+template<typename... Args>
+void BlockDeque<T>::emplace_back(Args&&... args) {
+    std::unique_lock<std::mutex> locker(mtx_);
+    condProducer_.wait(locker, [&]{ return deq_.size() < capacity_; });
+    deq_.emplace_back(std::forward<Args>(args)...);
+    condConsumer_.notify_one();
+}
+
+template<class T>
 bool BlockDeque<T>::empty() {
     std::lock_guard<std::mutex> locker(mtx_);
     return deq_.empty();
@@ -164,6 +199,33 @@ bool BlockDeque<T>::pop(T &item, int timeout) {
         return false;
     }
     item = deq_.front();
+    deq_.pop_front();
+    condProducer_.notify_one();
+    return true;
+}
+
+template<class T>
+bool BlockDeque<T>::pop_move(T &item) {
+    std::unique_lock<std::mutex> locker(mtx_);
+    condConsumer_.wait(locker, [&]{return !deq_.empty() || isClose_;});
+    if(isClose_ || deq_.empty()){
+        return false;
+    }
+    item = std::move(deq_.front());
+    deq_.pop_front();
+    condProducer_.notify_one();
+    return true;
+}
+
+template<class T>
+bool BlockDeque<T>::pop_move(T &item, int timeout) {
+    std::unique_lock<std::mutex> locker(mtx_);
+    bool success = condConsumer_.wait_for(locker, std::chrono::seconds(timeout),
+    [&]{ return !deq_.empty() || isClose_; });
+    if(isClose_ || !success || deq_.empty()) {
+        return false;
+    }
+    item = std::move(deq_.front());
     deq_.pop_front();
     condProducer_.notify_one();
     return true;
